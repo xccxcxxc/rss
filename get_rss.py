@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s: %(message)s')
 
 BASE_URL = 'https://book.douban.com/latest'
-TOTAL_PAGE = 1
+TOTAL_PAGE = 10
 FEED_PATH = '/home/zg/python/flask/app/templates/rss_feed.xml'
 TIME_ZONE = pytz.timezone('Asia/Shanghai')
 
@@ -92,10 +92,10 @@ def main():
     # 获取 +8 区时区
     fg.lastBuildDate(datetime.now(TIME_ZONE))
 
-    for page in range(1, TOTAL_PAGE+1):
+    for page in range(TOTAL_PAGE, 0, -1):
         index_html = scrape_index(page)
         detail_urls = parse_index(index_html)
-        for detail_url in detail_urls:
+        for detail_url in reversed(list(detail_urls)):
             detail_html = scrape_detail(detail_url)
             data = parse_detail(detail_html)
             #logging.info('get detail data %s', data)
