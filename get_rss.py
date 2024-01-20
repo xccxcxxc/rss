@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s: %(message)s')
 
 BASE_URL = 'https://book.douban.com/latest'
-TOTAL_PAGE = 10
+TOTAL_PAGE = 5
 FEED_PATH = '/home/zg/python/flask/app/templates/rss_feed.xml'
 TIME_ZONE = pytz.timezone('Asia/Shanghai')
 
