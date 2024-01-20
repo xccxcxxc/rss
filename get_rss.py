@@ -1,8 +1,9 @@
 import re
 import requests
 import logging
+import pytz
 from urllib.parse import urljoin
-from datetime import datetime
+from datetime import datetime, timedelta
 from feedgen.feed import FeedGenerator
 
 
@@ -11,6 +12,8 @@ logging.basicConfig(level=logging.INFO,
 
 BASE_URL = 'https://book.douban.com/latest'
 TOTAL_PAGE = 1
+FEED_PATH = '/home/zg/python/flask/app/templates/rss_feed.xml'
+TIME_ZONE = pytz.timezone('Asia/Shanghai')
 
 myheaders = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -85,6 +88,9 @@ def main():
     fg.title('豆瓣新书速递')
     fg.link(href=BASE_URL, rel='alternate')
     fg.description('豆瓣新书速递，测试版')
+    fg.language('zh-CN')
+    # 获取 +8 区时区
+    fg.lastBuildDate(datetime.now(TIME_ZONE))
 
     for page in range(1, TOTAL_PAGE+1):
         index_html = scrape_index(page)
@@ -92,7 +98,7 @@ def main():
         for detail_url in detail_urls:
             detail_html = scrape_detail(detail_url)
             data = parse_detail(detail_html)
-            logging.info('get detail data %s', data)
+            #logging.info('get detail data %s', data)
 
             # 添加条目
             fe = fg.add_entry()
@@ -103,6 +109,7 @@ def main():
             fe.content(data['content'])
             #fe.pubDate(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
             fe.enclosure(url=data['cover'], type='image/jpeg')
+            fe.pubDate(datetime.now(TIME_ZONE))
 
     # 生成RSS源的XML文件
     rss_xml_bytes = fg.rss_str(pretty=True)
@@ -111,7 +118,7 @@ def main():
     rss_xml_str = rss_xml_bytes.decode('utf-8')
 
     # 将字符串内容写入文件
-    with open('rss_feed.xml', 'w', encoding='utf-8') as f:
+    with open(FEED_PATH, 'w', encoding='utf-8') as f:
         f.write(rss_xml_str)
 
     print('RSS源已生成并保存到rss_feed.xml文件。')
@@ -120,33 +127,3 @@ if __name__=='__main__':
     main()
 
 
-"""
-# 检查请求是否成功
-if response.status_code == 200:
-
-
-    # 生成RSS源的XML文件
-    rss_xml = fg.rss_str(pretty=True)
-
-    # 将XML内容写入文件
-    with open('rss_feed.xml', 'w', encoding='utf-8') as f:
-        f.write(rss_xml)
-        
-        
-
-    # 生成RSS源的XML文件
-    rss_xml_bytes = fg.rss_str(pretty=True)
-
-    # 将XML内容转换为字符串
-    rss_xml_str = rss_xml_bytes.decode('utf-8')
-
-    # 将字符串内容写入文件
-    with open('rss_feed.xml', 'w', encoding='utf-8') as f:
-        f.write(rss_xml_str)
-
-    print('RSS源已生成并保存到rss_feed.xml文件。')
-
-else:
-    print(f'请求失败，状态码：{response.status_code}')
-
-"""
