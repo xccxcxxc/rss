@@ -2,6 +2,7 @@ import re
 import requests
 import logging
 from urllib.parse import urljoin
+from datetime import datetime
 from feedgen.feed import FeedGenerator
 
 
@@ -9,7 +10,7 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s: %(message)s')
 
 BASE_URL = 'https://book.douban.com/latest'
-TOTAL_PAGE = 2
+TOTAL_PAGE = 1
 
 myheaders = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -25,7 +26,7 @@ myheaders = {
 }
 
 def scrape_page(url):
-    logging.info('scraping %s...', url)
+    #logging.info('scraping %s...', url)
     try:
         response = requests.get(url, headers=myheaders)
         if response.status_code == 200:
@@ -47,14 +48,73 @@ def parse_index(html):
         return []
     for item in items:
         detail_url = item
-        logging.info('get detail url %s', detail_url)
+        #logging.info('get detail url %s', detail_url)
         yield detail_url
 
+def scrape_detail(url):
+    return scrape_page(url)
+
+def parse_detail(html):
+    # re.S 用于多行匹配，也就是 html 有换行的时候可以用它
+    cover_pattern = re.compile(
+        'class="nbg".*?<img.*?src="(.*?)".*?title="点击看大图".*?>', re.S)
+    name_pattern = re.compile(
+        '<h1>.*?>(.*?)<.*?</h1>', re.S
+    )
+    info_patten = re.compile('<div id="info".*?>(.*?)</div>', re.S)
+    content_patten = re.compile('<div class="intro">(.*?)</div>', re.S)
+
+    cover = re.search(cover_pattern, html).group(1).strip() if re.\
+        search(cover_pattern, html) else None
+    name = re.search(name_pattern, html).group(1).strip() if re.\
+        search(name_pattern, html) else None
+    #info = None
+    info = re.search(info_patten, html).group(1).strip() if re.search(info_patten, html) else None
+    content = re.search(content_patten, html).group(1).strip() if re.search(content_patten, html) else None
+    return {
+        'cover': cover,
+        'name': name,
+        'info': info,
+        'content': content,
+    }
+
+
 def main():
+    # 使用FeedGenerator创建RSS源
+    fg = FeedGenerator()
+    fg.title('豆瓣新书速递')
+    fg.link(href=BASE_URL, rel='alternate')
+    fg.description('豆瓣新书速递，测试版')
+
     for page in range(1, TOTAL_PAGE+1):
         index_html = scrape_index(page)
         detail_urls = parse_index(index_html)
-        logging.info('detail urls %s', list(detail_urls))
+        for detail_url in detail_urls:
+            detail_html = scrape_detail(detail_url)
+            data = parse_detail(detail_html)
+            logging.info('get detail data %s', data)
+
+            # 添加条目
+            fe = fg.add_entry()
+            fe.id(detail_url)
+            fe.title(data['name'])
+            fe.link(href=detail_url)
+            fe.description(data['info'])
+            fe.content(data['content'])
+            #fe.pubDate(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            fe.enclosure(url=data['cover'], type='image/jpeg')
+
+    # 生成RSS源的XML文件
+    rss_xml_bytes = fg.rss_str(pretty=True)
+
+    # 将XML内容转换为字符串
+    rss_xml_str = rss_xml_bytes.decode('utf-8')
+
+    # 将字符串内容写入文件
+    with open('rss_feed.xml', 'w', encoding='utf-8') as f:
+        f.write(rss_xml_str)
+
+    print('RSS源已生成并保存到rss_feed.xml文件。')
 
 if __name__=='__main__':
     main()
@@ -63,17 +123,16 @@ if __name__=='__main__':
 """
 # 检查请求是否成功
 if response.status_code == 200:
-    # 使用FeedGenerator创建RSS源
-    fg = FeedGenerator()
-    fg.title('Example Website News')
-    fg.link(href=BASE_URL, rel='alternate')
-    fg.description('Latest news from Example Website')
 
-    # 将网页内容添加到RSS源中
-    entry = fg.add_entry()
-    entry.title('Latest News')
-    entry.link(href=BASE_URL)
-    entry.description(response.text)
+
+    # 生成RSS源的XML文件
+    rss_xml = fg.rss_str(pretty=True)
+
+    # 将XML内容写入文件
+    with open('rss_feed.xml', 'w', encoding='utf-8') as f:
+        f.write(rss_xml)
+        
+        
 
     # 生成RSS源的XML文件
     rss_xml_bytes = fg.rss_str(pretty=True)
