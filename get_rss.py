@@ -14,7 +14,7 @@ BASE_URL = 'https://book.douban.com/latest'
 TOTAL_PAGE = 1
 MAX_PAGE = 2
 MIN_PAGE = 1
-FEED_PATH = '/home/zg/python/flask/app/templates/rss_feed.xml'
+FEED_PATH = '/home/zg/python/feed/app/templates/rss_feed.xml'
 TIME_ZONE = pytz.timezone('Asia/Shanghai')
 
 myheaders = {
@@ -38,20 +38,24 @@ def scrape_page(url):
     while retry_count <= max_retries:
         try:
             response = requests.get(url, headers=myheaders)
+            retry_count += 1
             if response.status_code == 200:
                 return response.text
-            retry_count += 1
+
             if retry_count > max_retries:
                 logging.error('get invalid status code %s while scraping %s',
                               response.status_code, url)
-                return 'get invalid status code'
-
+                return 'scrape_page get invalid status code'
         except requests.RequestException:
+            retry_count += 1
             logging.error('error occurred while scraping %s', url,
                           exc_info=True)
+            return 'scrape_page get exception'
+
 
 def scrape_index(page):
     index_url = f'{BASE_URL}/?p={page}'
+    #index_url = f'{BASE_URL}/latest?subcat=全部&p={page}'
     return scrape_page(index_url)
 
 def parse_index(html):
@@ -139,7 +143,7 @@ def main():
     print('RSS源已生成并保存到rss_feed.xml文件。')
 
     # 本地也写一份，方便调试
-    with open('rss_feed.xml', 'w', encoding='utf-8') as f:
+    with open('/home/zg/python/rss/rss_feed.xml', 'w', encoding='utf-8') as f:
         f.write(rss_xml_str)
 
 if __name__=='__main__':
