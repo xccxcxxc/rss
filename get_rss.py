@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s: %(message)s')
 
 BASE_URL = 'https://book.douban.com/latest'
-TOTAL_PAGE = 5
+TOTAL_PAGE = 2
 FEED_PATH = '/home/zg/python/flask/app/templates/rss_feed.xml'
 TIME_ZONE = pytz.timezone('Asia/Shanghai')
 
@@ -30,15 +30,23 @@ myheaders = {
 
 def scrape_page(url):
     #logging.info('scraping %s...', url)
-    try:
-        response = requests.get(url, headers=myheaders)
-        if response.status_code == 200:
-            return response.text
-        logging.error('get invalid status code %s while scraping %s',
-                      response.status_code, url)
-    except requests.RequestException:
-        logging.error('error occurred while scraping %s', url,
-                      exc_info=True)
+    max_retries = 2
+    retry_count = 0
+
+    while retry_count <= max_retries:
+        try:
+            response = requests.get(url, headers=myheaders)
+            if response.status_code == 200:
+                return response.text
+            retry_count += 1
+            if retry_count > max_retries:
+                logging.error('get invalid status code %s while scraping %s',
+                              response.status_code, url)
+                return 'get invalid status code'
+
+        except requests.RequestException:
+            logging.error('error occurred while scraping %s', url,
+                          exc_info=True)
 
 def scrape_index(page):
     index_url = f'{BASE_URL}/?p={page}'
