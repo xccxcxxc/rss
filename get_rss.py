@@ -11,7 +11,9 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s: %(message)s')
 
 BASE_URL = 'https://book.douban.com/latest'
-TOTAL_PAGE = 2
+TOTAL_PAGE = 1
+MAX_PAGE = 2
+MIN_PAGE = 1
 FEED_PATH = '/home/zg/python/flask/app/templates/rss_feed.xml'
 TIME_ZONE = pytz.timezone('Asia/Shanghai')
 
@@ -73,13 +75,14 @@ def parse_detail(html):
         '<h1>.*?>(.*?)<.*?</h1>', re.S
     )
     info_patten = re.compile('<div id="info".*?>(.*?)</div>', re.S)
-    content_patten = re.compile('<div class="intro">(.*?)</div>', re.S)
+    content_patten = re.compile('<div class="related_info">(.*?)</div>', re.S)
 
     cover = re.search(cover_pattern, html).group(1).strip() if re.\
         search(cover_pattern, html) else None
     name = re.search(name_pattern, html).group(1).strip() if re.\
         search(name_pattern, html) else None
-    #info = None
+    #info = 'info'
+    #content = 'content'
     info = re.search(info_patten, html).group(1).strip() if re.search(info_patten, html) else None
     content = re.search(content_patten, html).group(1).strip() if re.search(content_patten, html) else None
     return {
@@ -100,7 +103,7 @@ def main():
     # 获取 +8 区时区
     fg.lastBuildDate(datetime.now(TIME_ZONE))
 
-    for page in range(TOTAL_PAGE, 0, -1):
+    for page in range(MAX_PAGE, MIN_PAGE-1, -1):
         index_html = scrape_index(page)
         detail_urls = parse_index(index_html)
         for detail_url in reversed(list(detail_urls)):
@@ -109,15 +112,19 @@ def main():
             #logging.info('get detail data %s', data)
 
             # 添加条目
-            fe = fg.add_entry()
-            fe.id(detail_url)
-            fe.title(data['name'])
-            fe.link(href=detail_url)
-            fe.description(data['info'])
-            fe.content(data['content'])
-            #fe.pubDate(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-            fe.enclosure(url=data['cover'], type='image/jpeg')
-            fe.pubDate(datetime.now(TIME_ZONE))
+            if data['cover'] is not None:
+                fe = fg.add_entry()
+                fe.id(detail_url)
+                fe.link(href=detail_url)
+                fe.title(data['name'])
+                fe.pubDate(datetime.now(TIME_ZONE))
+                #fe.enclosure(url=data['cover'], type='image/jpeg')
+                cover_url = data['cover']
+                cover = f'<img src="{cover_url}" alt="Cover Image">'
+                # 避免字符串为 None 出现异常
+                description = cover + (data['info'] or "") + (data['content'] or "")
+                fe.description(description)
+                #fe.content(data['content'])
 
     # 生成RSS源的XML文件
     rss_xml_bytes = fg.rss_str(pretty=True)
@@ -130,6 +137,10 @@ def main():
         f.write(rss_xml_str)
 
     print('RSS源已生成并保存到rss_feed.xml文件。')
+
+    # 本地也写一份，方便调试
+    with open('rss_feed.xml', 'w', encoding='utf-8') as f:
+        f.write(rss_xml_str)
 
 if __name__=='__main__':
     main()
