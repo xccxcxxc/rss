@@ -32,25 +32,18 @@ myheaders = {
 
 def scrape_page(url):
     #logging.info('scraping %s...', url)
-    max_retries = 2
-    retry_count = 0
+    try:
+        response = requests.get(url, headers=myheaders)
 
-    while retry_count <= max_retries:
-        try:
-            response = requests.get(url, headers=myheaders)
-            retry_count += 1
-            if response.status_code == 200:
-                return response.text
-
-            if retry_count > max_retries:
-                logging.error('get invalid status code %s while scraping %s',
-                              response.status_code, url)
-                return 'scrape_page get invalid status code'
-        except requests.RequestException:
-            retry_count += 1
-            logging.error('error occurred while scraping %s', url,
-                          exc_info=True)
-            return 'scrape_page get exception'
+        if response.status_code == 200:
+            return response.text
+        logging.error('get invalid status code %s while scraping %s',
+                      response.status_code, url)
+        return 'scrape_page get invalid status code'
+    except requests.RequestException:
+        logging.error('error occurred while scraping %s', url,
+                      exc_info=True)
+        return 'scrape_page get exception'
 
 
 def scrape_index(page):
@@ -140,7 +133,7 @@ def main():
     with open(FEED_PATH, 'w', encoding='utf-8') as f:
         f.write(rss_xml_str)
 
-    print('RSS源已生成并保存到rss_feed.xml文件。')
+    logging.info('RSS源已生成并保存到rss_feed.xml文件。')
 
     # 本地也写一份，方便调试
     with open('/home/zg/python/rss/rss_feed.xml', 'w', encoding='utf-8') as f:
